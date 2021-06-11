@@ -16,13 +16,10 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define I PA6
 
 #define MOTORFREQ 100
-void reverse_direction();
-void adjust_motor(int);
+void adjust_motor(int g, int error, int lasterr);
 
-bool clockwise = true;
 volatile int reflectance;
 volatile int set = 100;
-volatile int pot;
 
 void setup()
 {
@@ -51,7 +48,6 @@ volatile int g;
 volatile int kp;
 volatile int kd;
 volatile int ki;
-volatile int error;
 
 void loop()
 {
@@ -61,22 +57,28 @@ void loop()
   reflectance = analogRead(SENSOR);
   kp = analogRead(P)/100;
   kd = analogRead(D)/100;
-  ki = analogRead(I);
+  ki = analogRead(I)/100;
 
   display.println(kp);
   display.println(kd);
 
-  error = set - reflectance;
+  int error = set - reflectance;
   p = kp*error;
   d = kd*(error - lasterr);
-  i = ki*error + i;
-  g = p + d;
-  // if (g > 4095) {
-  //   g = 4095;
-  // } else if (g < -4095) {
-  //   g = -4095;
+  // i = ki*error + i;
+  // if (i > 4000) {
+  //   i = 4000;
   // }
-  adjust_motor(g);
+  // else if (i < -4000) {
+  //   i = -4000;
+  // }
+  g = p + d;
+  if (g > 4095) {
+    g = 4095;
+  } else if (g < -4095) {
+    g = -4095;
+  }
+  adjust_motor(g, error, lasterr);
   lasterr = error;
 
   display.println("error: ");
@@ -85,35 +87,21 @@ void loop()
   display.println(reflectance);
   display.println("g: ");
   display.println(g);
-  if(reflectance < set) {
-    display.println("Object detected!");
-  }
-  else {
-    display.println("Nothing detected!");
-  }
   display.display();
 }
 
-void adjust_motor(int g)
+void adjust_motor(int g, int error, int lasterr)
 {
+  // if error > 0, this means closer than the set value
   if (error > 0)
   {
     pwm_start(MOTOR_A, MOTORFREQ, g, RESOLUTION_12B_COMPARE_FORMAT);
-    pwm_start(MOTOR_B, MOTORFREQ, 0, RESOLUTION_12B_COMPARE_FORMAT);    
+    pwm_start(MOTOR_B, MOTORFREQ, 0, RESOLUTION_12B_COMPARE_FORMAT);
   }
+  // if error < 0, this means further away than the set value
   if (error < 0)
   {
     pwm_start(MOTOR_A, MOTORFREQ, 0, RESOLUTION_12B_COMPARE_FORMAT);
-    pwm_start(MOTOR_B, MOTORFREQ, g, RESOLUTION_12B_COMPARE_FORMAT);
-  }
-}
-
-void reverse_direction()
-{
-  if(clockwise) {
-    clockwise = false;
-  }
-  else {
-    clockwise = true;
+    pwm_start(MOTOR_B, MOTORFREQ, g, RESOLUTION_12B_COMPARE_FORMAT);    
   }
 }
