@@ -75,8 +75,11 @@ void loop()
   g = p + d;
   if (g > 4095) {
     g = 4095;
-  } else if (g < -4095) {
-    g = -4095;
+  } else if (g < 0) {
+    if (g < -4095) {
+      g = -4095;
+    }
+    g = g*-1;
   }
   adjust_motor(g, error, lasterr);
   lasterr = error;
